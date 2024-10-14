@@ -54,14 +54,15 @@ async def test_form(hass: HomeAssistant) -> None:
         result2 = await hass.config_entries.flow.async_configure(
             result["flow_id"],
             {
-                "api_key": "bla",
+                "base_url": "https://api.openai.com/v1",
+                "api_key": "sk-TZj8iw_kZnAHRjSaUIk6KI7cnLXKDwiDFmzPkZGkNiT3BlbkFJPgILeMzdn81tJ7B-i7sE_wx0FgMLxO2jZ5y1SM4lMA",
             },
         )
         await hass.async_block_till_done()
-
     assert result2["type"] is FlowResultType.CREATE_ENTRY
     assert result2["data"] == {
-        "api_key": "bla",
+        "base_url": "https://api.openai.com/v1",
+        "api_key": "sk-TZj8iw_kZnAHRjSaUIk6KI7cnLXKDwiDFmzPkZGkNiT3BlbkFJPgILeMzdn81tJ7B-i7sE_wx0FgMLxO2jZ5y1SM4lMA",
     }
     assert result2["options"] == RECOMMENDED_OPTIONS
     assert len(mock_setup_entry.mock_calls) == 1
@@ -119,7 +120,8 @@ async def test_form_invalid_auth(hass: HomeAssistant, side_effect, error) -> Non
         result2 = await hass.config_entries.flow.async_configure(
             result["flow_id"],
             {
-                "api_key": "bla",
+                "base_url": "https://api.openai.com/v1",
+                "api_key": "invalid_auth",
             },
         )
 
@@ -185,6 +187,7 @@ async def test_options_switching(
     options_flow = await hass.config_entries.options.async_init(
         mock_config_entry.entry_id
     )
+
     if current_options.get(CONF_RECOMMENDED) != new_options.get(CONF_RECOMMENDED):
         options_flow = await hass.config_entries.options.async_configure(
             options_flow["flow_id"],

@@ -19,7 +19,8 @@ def mock_config_entry(hass: HomeAssistant) -> MockConfigEntry:
         title="OpenAI",
         domain="openai_conversation",
         data={
-            "api_key": "bla",
+            "base_url": "https://api.openai.com/v1",
+            "api_key": "sk-TZj8iw_kZnAHRjSaUIk6KI7cnLXKDwiDFmzPkZGkNiT3BlbkFJPgILeMzdn81tJ7B-i7sE_wx0FgMLxO2jZ5y1SM4lMA",
         },
     )
     entry.add_to_hass(hass)
