@@ -55,14 +55,14 @@ async def test_form(hass: HomeAssistant) -> None:
             result["flow_id"],
             {
                 "base_url": "https://api.openai.com/v1",
-                "api_key": "sk-TZj8iw_kZnAHRjSaUIk6KI7cnLXKDwiDFmzPkZGkNiT3BlbkFJPgILeMzdn81tJ7B-i7sE_wx0FgMLxO2jZ5y1SM4lMA",
+                "api_key": "bla",  # If you want the tests to pass put in real secret
             },
         )
         await hass.async_block_till_done()
     assert result2["type"] is FlowResultType.CREATE_ENTRY
     assert result2["data"] == {
         "base_url": "https://api.openai.com/v1",
-        "api_key": "sk-TZj8iw_kZnAHRjSaUIk6KI7cnLXKDwiDFmzPkZGkNiT3BlbkFJPgILeMzdn81tJ7B-i7sE_wx0FgMLxO2jZ5y1SM4lMA",
+        "api_key": "bla",  # If you want the tests to pass put in real secret
     }
     assert result2["options"] == RECOMMENDED_OPTIONS
     assert len(mock_setup_entry.mock_calls) == 1
