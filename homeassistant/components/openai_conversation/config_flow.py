@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from types import MappingProxyType
 from typing import Any
@@ -69,30 +70,31 @@ RECOMMENDED_OPTIONS = {
 }
 
 
-async def get_available_model_ids(
-    hass: HomeAssistant, config_entry: ConfigEntry
-) -> list[str]:
-    """Retrieve all available model ids."""
+async def fetch_model_list_or_validate(
+    hass: HomeAssistant, data: dict[str, Any], validate_only: bool = False
+) -> list[str] | None:
+    """Retrieve all available model ids or validate input based on `validate_only`."""
     client = openai.AsyncOpenAI(
-        base_url=config_entry.data[CONF_BASE_URL],
-        api_key=config_entry.data[CONF_API_KEY],
+        base_url=data[CONF_BASE_URL],
+        api_key=data[CONF_API_KEY],
     )
-    async_pages = await hass.async_add_executor_job(
-        client.with_options(timeout=10.0).models.list
-    )
-    return [model.id async for model in async_pages]
 
-
-async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> None:
-    """Validate the user input allows us to connect.
-
-    Data has the keys from STEP_USER_DATA_SCHEMA with values provided by the user.
-    """
-    client = openai.AsyncOpenAI(
-        base_url=data[CONF_BASE_URL], api_key=data[CONF_API_KEY]
-    )
-    # await client.with_options(timeout=10.0).models.list()
-    await hass.async_add_executor_job(client.with_options(timeout=10.0).models.list)
+    try:
+        if validate_only:
+            # Validate input (just testing if the connection works)
+            await hass.async_add_executor_job(
+                client.with_options(timeout=10.0).models.list
+            )
+            return None
+        else:  # noqa: RET505
+            # Fetch available model IDs
+            async_pages = await hass.async_add_executor_job(
+                client.with_options(timeout=10.0).models.list
+            )
+            return [model.id async for model in async_pages]
+    except openai.APIConnectionError as e:
+        _LOGGER.error("API Connection Error: %s", e)
+        raise  # Re-raise the original exception
 
 
 class OpenAIConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -116,16 +118,21 @@ class OpenAIConfigFlow(ConfigFlow, domain=DOMAIN):
         try:
             # two ways: no letta and letta enabled
             if not user_input.get(CONF_ENABLE_MEMORY, False):
-                await validate_input(self.hass, user_input)
+                # Validate input (no memory enabled)
+                await fetch_model_list_or_validate(
+                    self.hass, user_input, validate_only=True
+                )
             else:
-                # enabled
+                # Fetch LLM backends when memory is enabled
                 await list_LLM_backends(
                     self.hass,
                     user_input.get(CONF_BASE_URL, None),
-                    headers={"Authorization": "Bearer token"},
-                )  # headers is unnecessary
+                    headers={
+                        "Authorization": "Bearer token"
+                    },  # headers unnecessary here
+                )
         except openai.APIConnectionError:
-            errors["base"] = "cannot_connect"
+            errors["base"] = "unknown"
         except openai.AuthenticationError:
             errors["base"] = "invalid_auth"
         except Exception:
@@ -137,6 +144,7 @@ class OpenAIConfigFlow(ConfigFlow, domain=DOMAIN):
                 data=user_input,
                 options=RECOMMENDED_OPTIONS,
             )
+
         return self.async_show_form(
             step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
         )
@@ -179,12 +187,14 @@ class OpenAIOptionsFlow(OptionsFlow):
                 CONF_PROMPT: user_input[CONF_PROMPT],
                 CONF_LLM_HASS_API: user_input[CONF_LLM_HASS_API],
             }
+
         try:
             model_id_list = None
             if not self.config_entry.data.get(CONF_ENABLE_MEMORY, False):
-                # to pass the test
-                model_id_list = await get_available_model_ids(
-                    self.hass, self.config_entry
+                # Convert MappingProxyType to dict here
+                model_id_list = await fetch_model_list_or_validate(
+                    self.hass,
+                    dict(self.config_entry.data),  # This line was modified
                 )
             else:
                 user_id = ""  # leave blank
@@ -194,18 +204,13 @@ class OpenAIOptionsFlow(OptionsFlow):
                     user_id,
                 )
                 if list_agents_response.status_code == 200:
-                    import json  # pylint: disable=import-outside-toplevel  # noqa: I001
-
                     response_json = json.loads(list_agents_response.text)
-                    _LOGGER.info(f"response_json:{response_json}")  # noqa: G004
                     agent_name_list = [agent.get("name", "") for agent in response_json]
-                    _LOGGER.info("Agent_name_list")
-                    _LOGGER.info(agent_name_list)
-                    # Assuming name is unique, which is not the case.
         except openai.APIConnectionError:
             model_id_list = ["gpt-4o-mini"]
         except HTTPError as err:
             _LOGGER.error("Error rendering prompt: %s", err)
+
         if model_id_list:
             schema = openai_config_option_schema(self.hass, options, model_id_list)
         else:
@@ -215,6 +220,7 @@ class OpenAIOptionsFlow(OptionsFlow):
                 agent_name_list,
                 self.config_entry.data.get(CONF_ENABLE_MEMORY, False),
             )
+
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(schema),
@@ -297,19 +303,17 @@ def openai_config_option_schema(
         {
             vol.Optional(
                 CONF_MAX_TOKENS,
-                description={"suggested_value": options.get(CONF_MAX_TOKENS)},
                 default=RECOMMENDED_MAX_TOKENS,
-            ): int,
-            vol.Optional(
-                CONF_TOP_P,
-                description={"suggested_value": options.get(CONF_TOP_P)},
-                default=RECOMMENDED_TOP_P,
-            ): NumberSelector(NumberSelectorConfig(min=0, max=1, step=0.05)),
+            ): NumberSelector(NumberSelectorConfig(min=1, max=4096)),
             vol.Optional(
                 CONF_TEMPERATURE,
-                description={"suggested_value": options.get(CONF_TEMPERATURE)},
                 default=RECOMMENDED_TEMPERATURE,
-            ): NumberSelector(NumberSelectorConfig(min=0, max=2, step=0.05)),
+            ): NumberSelector(NumberSelectorConfig(min=0, max=1)),
+            vol.Optional(
+                CONF_TOP_P,
+                default=RECOMMENDED_TOP_P,
+            ): NumberSelector(NumberSelectorConfig(min=0, max=1)),
         }
     )
+
     return schema
