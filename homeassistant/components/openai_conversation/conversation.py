@@ -106,7 +106,7 @@ class OpenAIConversationEntity(
         conversation.async_unset_agent(self.hass, self.entry)
         await super().async_will_remove_from_hass()
 
-    async def async_process(  # noqa: C901
+    async def async_process(
         self, user_input: conversation.ConversationInput
     ) -> conversation.ConversationResult:
         """Process a sentence."""
@@ -114,29 +114,20 @@ class OpenAIConversationEntity(
         intent_response = intent.IntentResponse(language=user_input.language)
         llm_api, tools = await self._setup_llm_api(user_input, intent_response)
         if llm_api is None:
-            return conversation.ConversationResult(
-                response=intent_response, conversation_id=conversation_id
-            )
+            return self._create_conversation_result(intent_response, conversation_id)
+
         prompt = await self._generate_prompt(user_input, llm_api, intent_response)
         if prompt is None:
-            return conversation.ConversationResult(
-                response=intent_response, conversation_id=conversation_id
-            )
+            return self._create_conversation_result(intent_response, conversation_id)
+
         return await self._generate_response(
             user_input, conversation_id, messages, prompt, tools, intent_response
         )
 
     def _initialize_conversation(self, user_input: conversation.ConversationInput):
-        """Initialize conversation ID and messages."""
-        if user_input.conversation_id is None:
-            conversation_id = ulid.ulid_now()
-            messages = []
-        elif user_input.conversation_id in self.history:
-            conversation_id = user_input.conversation_id
-            messages = self.history[conversation_id]
-        else:
-            conversation_id = self._handle_invalid_conversation_id(user_input)
-            messages = []
+        """Initialize conversation."""
+        conversation_id = self._handle_invalid_conversation_id(user_input)
+        messages = self.history.get(conversation_id, [])
         return conversation_id, messages
 
     def _handle_invalid_conversation_id(
@@ -155,7 +146,7 @@ class OpenAIConversationEntity(
         options = self.entry.options
         llm_api = None
         tools = None
-        if options.get(CONF_LLM_HASS_API):  # noqa: RET503
+        if options.get(CONF_LLM_HASS_API):
             try:
                 llm_api = await llm.async_get_api(
                     self.hass,
@@ -179,7 +170,13 @@ class OpenAIConversationEntity(
                     intent.IntentResponseErrorCode.UNKNOWN,
                     f"Error preparing LLM API: {err}",
                 )
-            return llm_api, tools
+        return llm_api, tools
+
+    def _create_conversation_result(self, intent_response, conversation_id):
+        """Create a conversation result."""
+        return conversation.ConversationResult(
+            response=intent_response, conversation_id=conversation_id
+        )
 
     async def _generate_prompt(self, user_input, llm_api, intent_response):
         """Generate the prompt for the LLM."""
@@ -218,21 +215,12 @@ class OpenAIConversationEntity(
             )
             return None
 
-    async def _get_user_name(self, user_input):
-        """Retrieve the user's name."""
-        if user_input.context and user_input.context.user_id:
-            user = await self.hass.auth.async_get_user(user_input.context.user_id)
-            return user.name if user else None
-        return None
-
     async def _generate_response(
         self, user_input, conversation_id, messages, prompt, tools, intent_response
     ):
         """Generate a response using the LLM."""
         client = self.entry.runtime_data
-
-        # To prevent infinite loops, we limit the number of iterations
-        for _iteration in range(MAX_TOOL_ITERATIONS):  # noqa: RET503
+        for _iteration in range(MAX_TOOL_ITERATIONS):
             try:
                 result = await client.chat.completions.create(
                     model=self.entry.options.get(
@@ -253,18 +241,19 @@ class OpenAIConversationEntity(
                 response = result.choices[0].message
                 messages.append(response)
                 self.history[conversation_id] = messages
-                return conversation.ConversationResult(
-                    response=intent_response, conversation_id=conversation_id
+                return self._create_conversation_result(
+                    intent_response, conversation_id
                 )
-            except openai.OpenAIError as err:
-                intent_response = intent.IntentResponse(language=user_input.language)
+            except openai.OpenAIError as e:
+                LOGGER.error("Error generating response: %s", e)
                 intent_response.async_set_error(
                     intent.IntentResponseErrorCode.UNKNOWN,
-                    f"Sorry, I had a problem talking to OpenAI: {err}",
+                    "An error occurred while generating the response.",
                 )
-                return conversation.ConversationResult(
-                    response=intent_response, conversation_id=conversation_id
+                return self._create_conversation_result(
+                    intent_response, conversation_id
                 )
+        return None
 
     async def _async_entry_update_listener(
         self, hass: HomeAssistant, entry: ConfigEntry
