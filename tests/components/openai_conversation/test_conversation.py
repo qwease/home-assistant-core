@@ -2,6 +2,7 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import openai
 import pytest
 
 from homeassistant.components.openai_conversation import OpenAIConfigEntry
@@ -23,13 +24,22 @@ def mock_entry():
     entry.entry_id = "test_entry_id"
     entry.title = "Test Entry"
     entry.options = {CONF_LLM_HASS_API: "test_api"}
+    entry.runtime_data = MagicMock()  # Mock the runtime_data attribute
     return entry
 
 
 @pytest.fixture
 def mock_hass():
     """Create a mock HomeAssistant instance."""
-    return MagicMock(spec=HomeAssistant)
+    hass = MagicMock(spec=HomeAssistant)
+    hass.auth = MagicMock()  # Mock the auth attribute
+    hass.auth.async_get_user = AsyncMock(
+        return_value=None
+    )  # Mock the async_get_user method
+    hass.config = MagicMock()  # Mock the config attribute
+    hass.config.location_name = "Test Location"  # Set a mock location name
+    hass.data = MagicMock()  # Mock the data attribute
+    return hass
 
 
 @pytest.fixture
@@ -39,9 +49,11 @@ def mock_intent_response():
 
 
 @pytest.fixture
-def openai_conversation_entity(mock_entry):
-    """Create an instance of OpenAIConversationEntity."""
-    return OpenAIConversationEntity(mock_entry)
+def openai_conversation_entity(mock_entry, mock_hass):
+    """Create an instance of OpenAIConversationEntity with a mocked hass."""
+    entity = OpenAIConversationEntity(mock_entry)
+    entity.hass = mock_hass  # Set the hass attribute
+    return entity
 
 
 def test_initialize_conversation(openai_conversation_entity):
@@ -75,10 +87,20 @@ async def test_generate_prompt(openai_conversation_entity, mock_intent_response)
     """Test the _generate_prompt method."""
     user_input = MagicMock()
     llm_api = MagicMock()
-    prompt = await openai_conversation_entity._generate_prompt(
-        user_input, llm_api, mock_intent_response
-    )
-    assert prompt is not None
+    llm_api.api_prompt = "API prompt"  # Ensure this is a string
+
+    # Mock the template rendering
+    with patch(
+        "homeassistant.helpers.template.Template.async_render", new_callable=AsyncMock
+    ) as mock_render:
+        mock_render.return_value = "Rendered prompt"
+
+        prompt = await openai_conversation_entity._generate_prompt(
+            user_input, llm_api, mock_intent_response
+        )
+        assert prompt is not None
+        assert "Rendered prompt" in prompt
+        assert "API prompt" in prompt
 
 
 @pytest.mark.asyncio
@@ -89,9 +111,12 @@ async def test_generate_response(openai_conversation_entity, mock_intent_respons
     messages = []
     prompt = "Test prompt"
     tools = None
-    with patch("openai.OpenAIError", new_callable=AsyncMock) as mock_openai_error:
-        mock_openai_error.side_effect = Exception("Test error")
-        result = await openai_conversation_entity._generate_response(
-            user_input, conversation_id, messages, prompt, tools, mock_intent_response
-        )
-        assert result is not None
+    # Mock the runtime_data and its methods
+    openai_conversation_entity.entry.runtime_data = MagicMock()
+    openai_conversation_entity.entry.runtime_data.chat.completions.create = AsyncMock(
+        side_effect=openai.OpenAIError("Test error")
+    )
+    result = await openai_conversation_entity._generate_response(
+        user_input, conversation_id, messages, prompt, tools, mock_intent_response
+    )
+    assert result is not None

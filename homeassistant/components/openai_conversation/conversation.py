@@ -184,7 +184,7 @@ class OpenAIConversationEntity(
         user_name = await self._get_user_name(user_input)
         try:
             prompt_parts = [
-                template.Template(
+                await template.Template(
                     llm.BASE_PROMPT
                     + options.get(CONF_PROMPT, llm.DEFAULT_INSTRUCTIONS_PROMPT),
                     self.hass,
@@ -214,6 +214,13 @@ class OpenAIConversationEntity(
                 f"Sorry, I had a problem with my template: {err}",
             )
             return None
+
+    async def _get_user_name(self, user_input):
+        """Retrieve the user's name."""
+        if user_input.context and user_input.context.user_id:
+            user = await self.hass.auth.async_get_user(user_input.context.user_id)
+            return user.name if user else None
+        return None
 
     async def _generate_response(
         self, user_input, conversation_id, messages, prompt, tools, intent_response
