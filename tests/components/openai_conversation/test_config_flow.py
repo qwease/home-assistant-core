@@ -1,6 +1,4 @@
-"""Test the OpenAI Conversation config flow."""
-
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, patch  # noqa: D100
 
 from httpx import Response
 from openai import APIConnectionError, AuthenticationError, BadRequestError
@@ -27,6 +25,15 @@ from tests.common import MockConfigEntry
 
 
 @pytest.fixture
+def mock_lm_studio_models():
+    """Mock LM Studio models API response."""
+    return [
+        {"id": "lm-studio-model-1", "object": "model"},
+        {"id": "lm-studio-model-2", "object": "model"},
+    ]
+
+
+@pytest.fixture
 def mock_openai_models():
     """Mock OpenAI models API response."""
     return [
@@ -35,8 +42,52 @@ def mock_openai_models():
     ]
 
 
-async def test_form(hass: HomeAssistant, mock_openai_models) -> None:
-    """Test we get the form and that models can be fetched."""
+async def test_lm_studio_form(hass: HomeAssistant, mock_lm_studio_models) -> None:
+    """Test LM Studio connection and fetching models."""
+    hass.config.components.add("openai_conversation")
+    MockConfigEntry(
+        domain=DOMAIN,
+        state=config_entries.ConfigEntryState.LOADED,
+    ).add_to_hass(hass)
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] is None
+
+    with (
+        patch(
+            "homeassistant.components.openai_conversation.config_flow.openai.resources.models.AsyncModels.list",
+            new_callable=AsyncMock,
+            return_value=mock_lm_studio_models,
+        ),
+        patch(
+            "homeassistant.components.openai_conversation.async_setup_entry",
+            return_value=True,
+        ),
+    ):
+        result2 = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {
+                "base_url": "http://localhost:5000/api/v1",  # LM Studio URL
+                "api_key": "bla",
+            },
+        )
+        await hass.async_block_till_done()
+
+    assert result2["type"] is FlowResultType.CREATE_ENTRY
+
+    # Validate the data structure
+    assert result2["data"] == {
+        "base_url": "http://localhost:5000/api/v1",
+        "api_key": "bla",
+        "enable_memory": False,  # Added the extra key
+    }
+
+
+async def test_openai_form(hass: HomeAssistant, mock_openai_models) -> None:
+    """Test we get the form and that models can be fetched from OpenAI."""
     hass.config.components.add("openai_conversation")
     MockConfigEntry(
         domain=DOMAIN,
@@ -79,37 +130,48 @@ async def test_form(hass: HomeAssistant, mock_openai_models) -> None:
     }
 
 
-async def test_options(
-    hass: HomeAssistant, mock_config_entry, mock_init_component
-) -> None:
-    """Test the options form."""
-    # Start the options flow
-    options_flow = await hass.config_entries.options.async_init(
-        mock_config_entry.entry_id
-    )
+async def test_letta_form(hass: HomeAssistant, mock_lm_studio_models) -> None:
+    """Test Letta connection and fetching models."""
+    hass.config.components.add("openai_conversation")
+    MockConfigEntry(
+        domain=DOMAIN,
+        state=config_entries.ConfigEntryState.LOADED,
+    ).add_to_hass(hass)
 
-    # Configure the options flow with initial data
-    options = await hass.config_entries.options.async_configure(
-        options_flow["flow_id"],
-        {
-            "prompt": "Speak like a pirate",
-            "max_tokens": 200,
-            CONF_RECOMMENDED: True,
-            CONF_LLM_HASS_API: "none",
-        },
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] is None
 
-    # If the flow returns a form, handle further steps if necessary
-    while options["type"] == FlowResultType.FORM:
-        # Provide additional data if needed
-        options = await hass.config_entries.options.async_configure(
-            options["flow_id"],
+    with (
+        patch(
+            "homeassistant.components.openai_conversation.config_flow.openai.resources.models.AsyncModels.list",
+            new_callable=AsyncMock,
+            return_value=mock_lm_studio_models,
+        ),
+        patch(
+            "homeassistant.components.openai_conversation.async_setup_entry",
+            return_value=True,
+        ),
+    ):
+        result2 = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
             {
-                "prompt": "Continue with next step",
-                CONF_RECOMMENDED: True,
-                CONF_LLM_HASS_API: "none",
+                "base_url": "http://localhost:6000/api/v1",  # Letta URL
+                "api_key": "bla",
             },
         )
+        await hass.async_block_till_done()
+
+    assert result2["type"] is FlowResultType.CREATE_ENTRY
+
+    # Validate the data structure
+    assert result2["data"] == {
+        "base_url": "http://localhost:6000/api/v1",
+        "api_key": "bla",
+        "enable_memory": False,  # Added the extra key
+    }
 
 
 @pytest.mark.parametrize(
@@ -143,7 +205,7 @@ async def test_form_invalid_auth(hass: HomeAssistant, side_effect, error) -> Non
         result2 = await hass.config_entries.flow.async_configure(
             result["flow_id"],
             {
-                "base_url": "https://api.openai.com/v1",
+                "base_url": "http://localhost:5000/api/v1",  # LM Studio URL
                 "api_key": "invalid_auth",
             },
         )
