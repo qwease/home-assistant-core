@@ -48,7 +48,7 @@ from .const import (
     RECOMMENDED_TEMPERATURE,
     RECOMMENDED_TOP_P,
 )
-from .letta_api import list_agents, list_LLM_backends
+from .letta_api import list_agents, list_llm_backends
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -124,7 +124,7 @@ class OpenAIConfigFlow(ConfigFlow, domain=DOMAIN):
                 )
             else:
                 # Fetch LLM backends when memory is enabled
-                await list_LLM_backends(
+                await list_llm_backends(
                     self.hass,
                     user_input.get(CONF_BASE_URL, None),
                     headers={
