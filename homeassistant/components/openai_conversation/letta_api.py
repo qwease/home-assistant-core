@@ -29,10 +29,6 @@ def _post_request(
     return request("POST", url, json=payload, headers=headers, timeout=timeout)
 
 
-def _check_lm_studio_backend():
-    pass
-
-
 async def list_LLM_backends(
     hass: HomeAssistant,
     base_url: str | None,
