@@ -16,6 +16,9 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 
+OPENAI_BASE_URL = "https://api.openai.com/v1"
+PROMPT = "A beautiful sunset"
+
 
 # Test setup for OpenAI entry with memory enabled
 @pytest.mark.asyncio
@@ -24,7 +27,7 @@ async def test_async_setup_entry_with_memory(hass: HomeAssistant) -> None:
     mock_entry = MagicMock(spec=ConfigEntry)
     mock_entry.data = {
         "api_key": "test_api_key",
-        "base_url": "https://api.openai.com/v1",
+        "base_url": OPENAI_BASE_URL,
         "enable_memory": True,
     }
     mock_entry.options = {}
@@ -51,7 +54,7 @@ async def test_render_image_service(hass: HomeAssistant) -> None:
     mock_entry = MagicMock(spec=ConfigEntry)
     mock_entry.data = {
         "api_key": "test_api_key",
-        "base_url": "https://api.openai.com/v1",
+        "base_url": OPENAI_BASE_URL,
     }
     mock_entry.domain = DOMAIN
     mock_entry.entry_id = "test_entry_id"
@@ -71,7 +74,7 @@ async def test_render_image_service(hass: HomeAssistant) -> None:
 
     service_data = {
         "config_entry": mock_entry.entry_id,
-        "prompt": "A beautiful sunset",
+        "prompt": PROMPT,
         "size": "1024x1024",
         "quality": "standard",
         "style": "vivid",
@@ -89,7 +92,7 @@ async def test_render_image_service(hass: HomeAssistant) -> None:
     # Check if the service generated an image
     mock_openai_client.images.generate.assert_called_once_with(
         model="dall-e-3",
-        prompt="A beautiful sunset",
+        prompt=PROMPT,
         size="1024x1024",
         quality="standard",
         style="vivid",
@@ -105,7 +108,7 @@ async def test_setup_entry_connection_error(hass: HomeAssistant) -> None:
     mock_entry = MagicMock(spec=ConfigEntry)
     mock_entry.data = {
         "api_key": "test_api_key",
-        "base_url": "https://api.openai.com/v1",
+        "base_url": OPENAI_BASE_URL,
     }
     mock_entry.domain = DOMAIN
     mock_entry.options = {}
@@ -138,7 +141,7 @@ async def test_render_image_service_api_error(hass: HomeAssistant) -> None:
     mock_entry = MagicMock(spec=ConfigEntry)
     mock_entry.data = {
         "api_key": "test_api_key",
-        "base_url": "https://api.openai.com/v1",
+        "base_url": OPENAI_BASE_URL,
     }
     mock_entry.domain = DOMAIN
     mock_entry.entry_id = "test_entry_id"
@@ -156,7 +159,7 @@ async def test_render_image_service_api_error(hass: HomeAssistant) -> None:
 
     service_data = {
         "config_entry": mock_entry.entry_id,
-        "prompt": "A beautiful sunset",
+        "prompt": PROMPT,
         "size": "1024x1024",
         "quality": "standard",
         "style": "vivid",
@@ -180,7 +183,7 @@ async def test_memory_functionality_enabled(hass: HomeAssistant) -> None:
     mock_entry = MagicMock(spec=ConfigEntry)
     mock_entry.data = {
         "api_key": "test_api_key",
-        "base_url": "https://api.openai.com/v1",
+        "base_url": OPENAI_BASE_URL,
         "enable_memory": True,
     }
     mock_entry.options = {}
@@ -207,7 +210,7 @@ async def test_setup_entry_invalid_api_key(hass: HomeAssistant) -> None:
     mock_entry = MagicMock(spec=ConfigEntry)
     mock_entry.data = {
         "api_key": "invalid_api_key",
-        "base_url": "https://api.openai.com/v1",
+        "base_url": OPENAI_BASE_URL,
     }
     mock_entry.domain = DOMAIN
     mock_entry.options = {}
