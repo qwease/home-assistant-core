@@ -107,8 +107,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: OpenAIConfigEntry) -> bo
     except KeyError:
         base_url = entry.data[CONF_BASE_URL]
 
-    # Import the exceptions at the top level, not inside the try block
-
     # check CONF_ENABLE_MEMORY
     if entry.data.get(CONF_ENABLE_MEMORY):
         # if enabled, only for letta with LM Studio Backend

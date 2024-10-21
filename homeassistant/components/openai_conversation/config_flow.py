@@ -48,6 +48,7 @@ from .const import (
     RECOMMENDED_TEMPERATURE,
     RECOMMENDED_TOP_P,
 )
+
 from .letta_api import list_agents, list_llm_backends
 
 _LOGGER = logging.getLogger(__name__)
