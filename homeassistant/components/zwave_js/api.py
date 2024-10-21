@@ -2079,6 +2079,7 @@ async def websocket_subscribe_firmware_update_status(
                 },
             )
         )
+
     FIRMWARE_UPDATE_PROGRESS_EVENT = "firmware update progress"
 
     if controller.own_node == node:

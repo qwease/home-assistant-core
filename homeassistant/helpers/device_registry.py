@@ -961,11 +961,10 @@ class DeviceRegistry(BaseRegistry[dict[str, list[dict[str, Any]]]]):
                         )
                     )
                     or primary_entry.domain in LOW_PRIO_CONFIG_ENTRY_DOMAINS
-                )    
+                )
             ):
-
-                    new_values["primary_config_entry"] = add_config_entry.entry_id
-                    old_values["primary_config_entry"] = old.primary_config_entry
+                new_values["primary_config_entry"] = add_config_entry.entry_id
+                old_values["primary_config_entry"] = old.primary_config_entry
 
             if add_config_entry.entry_id not in old.config_entries:
                 config_entries = old.config_entries | {add_config_entry.entry_id}

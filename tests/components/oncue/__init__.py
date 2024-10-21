@@ -4,21 +4,22 @@ from contextlib import contextmanager
 from unittest.mock import patch
 
 from aiooncue import LoginFailedException, OncueDevice, OncueSensor
+
 PRODUCT_NAME = "RDC 2.4"
 
 MOCK_ASYNC_FETCH_ALL = {
     "123456": OncueDevice(
         name="My Generator",
         state="Off",
-        product_name=PRODUCT_NAME ,
+        product_name=PRODUCT_NAME,
         hardware_version="319",
         serial_number="SERIAL",
         sensors={
             "Product": OncueSensor(
                 name="Product",
                 display_name="Controller Type",
-                value=PRODUCT_NAME ,
-                display_value=PRODUCT_NAME ,
+                value=PRODUCT_NAME,
+                display_value=PRODUCT_NAME,
                 unit=None,
             ),
             "FirmwareVersion": OncueSensor(
@@ -275,15 +276,15 @@ MOCK_ASYNC_FETCH_ALL_OFFLINE_DEVICE = {
     "456789": OncueDevice(
         name="My Generator",
         state="Off",
-        product_name=PRODUCT_NAME ,
+        product_name=PRODUCT_NAME,
         hardware_version="319",
         serial_number="SERIAL",
         sensors={
             "Product": OncueSensor(
                 name="Product",
                 display_name="Controller Type",
-                value=PRODUCT_NAME ,
-                display_value=PRODUCT_NAME ,
+                value=PRODUCT_NAME,
+                display_value=PRODUCT_NAME,
                 unit=None,
             ),
             "FirmwareVersion": OncueSensor(
@@ -539,7 +540,7 @@ MOCK_ASYNC_FETCH_ALL_UNAVAILABLE_DEVICE = {
     "456789": OncueDevice(
         name="My Generator",
         state="Off",
-        product_name=PRODUCT_NAME ,
+        product_name=PRODUCT_NAME,
         hardware_version="319",
         serial_number="SERIAL",
         sensors={
@@ -547,7 +548,7 @@ MOCK_ASYNC_FETCH_ALL_UNAVAILABLE_DEVICE = {
                 name="Product",
                 display_name="Controller Type",
                 value="--",
-                display_value=PRODUCT_NAME ,
+                display_value=PRODUCT_NAME,
                 unit=None,
             ),
             "FirmwareVersion": OncueSensor(
