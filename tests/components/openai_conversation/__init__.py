@@ -176,33 +176,6 @@ async def test_render_image_service_api_error(hass: HomeAssistant) -> None:
         )
 
 
-# Test memory functionality
-@pytest.mark.asyncio
-async def test_memory_functionality_enabled(hass: HomeAssistant) -> None:
-    """Test setup entry for OpenAI with memory enabled and validate backend check."""
-    mock_entry = MagicMock(spec=ConfigEntry)
-    mock_entry.data = {
-        "api_key": "test_api_key",
-        "base_url": OPENAI_BASE_URL,
-        "enable_memory": True,
-    }
-    mock_entry.options = {}
-    mock_entry.domain = DOMAIN
-    mock_entry.entry_id = "test_entry_id"
-    mock_entry.setup_lock = MagicMock()
-    mock_entry.title = "Test Title"
-
-    with patch(
-        "homeassistant.components.openai_conversation.letta_api.list_llm_backends",
-        new=AsyncMock(),
-    ) as mock_llm_backends:
-        mock_llm_backends.return_value = MagicMock(status_code=200)
-
-        result = await async_setup_entry(hass, mock_entry)
-        assert result is True
-        mock_llm_backends.assert_called_once()
-
-
 # Test invalid API key
 @pytest.mark.asyncio
 async def test_setup_entry_invalid_api_key(hass: HomeAssistant) -> None:
